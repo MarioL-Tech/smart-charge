@@ -6,6 +6,7 @@ Format: `YYYY-MM-DD HH:MM` (Europe/Vienna)
 
 ## 2026-08-06
 
+- **19:51** — **Feat: RFID manual override (MFRC522)** — ESP32 reads RFID cards as manual override (tap = toggle charging), reports status to the Pi and accepts Pi commands over UART; new line protocol in `docs/uart-protocol.md`; `rasppi/src/main.py` is now an interactive UART bridge (PR #9).
 - **19:38** — Docs: rework `docs/pin-connection.md` (proper markdown table, signal column, GND ↔ GND) and sync wiring section in `docs/setup.md` (PR #7).
 - **19:35** — Docs: Mario created `docs/pin-connection.md` (pin wiring reference).
 - **19:33** — Docs: add `docs/setup.md` — full setup guide (Pi preparation, wiring, ESP32 flash, connection test, MQTT) (PR #6).

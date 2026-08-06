@@ -1,31 +1,123 @@
 #include <Arduino.h>
+#include <SPI.h>
+#include <MFRC522.h>
 
-// UART connection test: ESP32 <-> Raspberry Pi
-// Serial2: GPIO 16 = RX (from Pi TXD/GPIO14), GPIO 17 = TX (to Pi RXD/GPIO15)
-// Run rasppi/src/main.py on the Pi side to see the data.
+#include "config.h"
+
+MFRC522 mfrc522(RFID_SS_PIN, RFID_RST_PIN);
+
+// Current charging state. The charging station interface is still TBD
+// (relay, CP signal, Modbus, ...) - see docs/uart-protocol.md.
+bool chargingOn = false;
+
+unsigned long lastCardTapMs = 0;
+
+// ---------- UART helpers ----------
+
+String readUartLine() {
+  static String line;
+  while (Serial2.available()) {
+    char c = (char)Serial2.read();
+    if (c == '\n') {
+      String out = line;
+      line = "";
+      return out;
+    }
+    if (c != '\r') line += c;
+  }
+  return "";
+}
+
+void sendStatus(const char *reason) {
+  Serial2.printf("EVSE:STATUS:CHARGING:%s:SRC:%s\n",
+                 chargingOn ? "ON" : "OFF", reason);
+  Serial.printf("EVSE:STATUS:CHARGING:%s:SRC:%s\n",
+                chargingOn ? "ON" : "OFF", reason);
+}
+
+void sendRfidEvent(const String &uidHex) {
+  Serial2.printf("EVSE:RFID:CARD:UID:%s\n", uidHex.c_str());
+  Serial.printf("EVSE:RFID:CARD:UID:%s\n", uidHex.c_str());
+}
+
+// ---------- Charging state ----------
+
+void applyChargingState(bool state, const char *source) {
+  if (state == chargingOn) {
+    return; // no change, do not spam the Pi
+  }
+  chargingOn = state;
+  sendStatus(source);
+}
+
+void handleUartCommand(const String &cmd) {
+  if (cmd == "CMD:CHARGE:ON") {
+    applyChargingState(true, "pi");
+  } else if (cmd == "CMD:CHARGE:OFF") {
+    applyChargingState(false, "pi");
+  } else if (cmd == "CMD:STATUS") {
+    sendStatus("query");
+  } else if (cmd.length() > 0) {
+    // Unknown command: report back so the Pi side can notice protocol drift.
+    Serial2.printf("EVSE:ERROR:UNKNOWN_CMD:%s\n", cmd.c_str());
+  }
+}
+
+// ---------- RFID (manual override) ----------
+
+String uidToHex() {
+  String hex = "";
+  for (byte i = 0; i < mfrc522.uid.size; i++) {
+    if (mfrc522.uid.uidByte[i] < 0x10) hex += "0";
+    hex += String(mfrc522.uid.uidByte[i], HEX);
+    if (i < mfrc522.uid.size - 1) hex += ":";
+  }
+  hex.toUpperCase();
+  return hex;
+}
+
+void handleRfidCard() {
+  if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
+    return;
+  }
+
+  String uid = uidToHex();
+  sendRfidEvent(uid);
+
+  // Debounce: the same card is often read repeatedly while held on the reader.
+  unsigned long now = millis();
+  if (now - lastCardTapMs > CARD_DEBOUNCE_MS) {
+    lastCardTapMs = now;
+    // Manual override: any valid card toggles the charging state.
+    // TODO: whitelist of allowed UIDs, see docs/uart-protocol.md.
+    applyChargingState(!chargingOn, "rfid");
+  }
+
+  mfrc522.PICC_HaltA();
+  mfrc522.PCD_StopCrypto1();
+}
+
+// ---------- Main ----------
 
 void setup() {
-  Serial.begin(115200);                        // USB serial (debug)
-  Serial2.begin(115200, SERIAL_8N1, 16, 17);   // UART to the Pi
+  Serial.begin(115200); // USB debug
+  Serial2.begin(UART_BAUD, SERIAL_8N1, UART_RX_PIN, UART_TX_PIN);
+
+  SPI.begin(); // VSPI: SCK=18, MISO=19, MOSI=23
+  mfrc522.PCD_Init();
+  mfrc522.PCD_SetAntennaGain(MFRC522::RxGain_max);
+
+  Serial.println("EVSE RFID controller started");
+  sendStatus("boot");
 }
 
 void loop() {
-  static uint32_t counter = 0;
+  handleRfidCard();
 
-  // Heartbeat: send a counter line to the Pi every second
-  Serial2.printf("EVSE_TEST:%lu\n", counter);
-  Serial.printf("TX -> Pi: EVSE_TEST:%lu\n", counter);
-  counter++;
-
-  // Echo anything the Pi sends back (proves RX direction)
-  if (Serial2.available()) {
-    String line = Serial2.readStringUntil('\n');
-    line.trim();
-    if (line.length() > 0) {
-      Serial2.printf("ECHO:%s\n", line.c_str());
-      Serial.printf("RX <- Pi: %s\n", line.c_str());
-    }
+  String cmd = readUartLine();
+  if (cmd.length() > 0) {
+    handleUartCommand(cmd);
   }
 
-  delay(1000);
+  delay(10);
 }
