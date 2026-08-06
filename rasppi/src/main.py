@@ -1,36 +1,48 @@
-"""UART connection test: Raspberry Pi <-> ESP32.
+"""UART bridge between Raspberry Pi and ESP32 (EVSE-Control).
 
-Run this on the Pi while the ESP32 sketch (esp32/src/main.cpp) is running.
-The ESP32 sends EVSE_TEST:<counter> every second and echoes PING as ECHO:PING.
-Seeing lines on both RX and TX means the wiring is correct.
+The ESP32 reports charging status and RFID events; this script prints them
+and lets you send commands to the ESP32.
 
-Note: enable the serial port first via `sudo raspi-config`
--> Interface Options -> Serial Port -> login shell: No, serial port: Yes.
+Commands (type in the terminal):
+  on       -> CMD:CHARGE:ON
+  off      -> CMD:CHARGE:OFF
+  status   -> CMD:STATUS
+  anything else is passed through as-is.
+
+Requires: sudo apt install python3-serial
 """
 
+import select
 import serial
-import time
+import sys
 
 PORT = "/dev/serial0"
 BAUD = 115200
 
-ser = serial.Serial(PORT, BAUD, timeout=1)
-print(f"EVSE connection test: listening on {PORT} @ {BAUD} baud")
-print("Press Ctrl+C to stop.")
-
-last_ping = time.time()
+ser = serial.Serial(PORT, BAUD, timeout=0.1)
+print(f"EVSE UART bridge: listening on {PORT} @ {BAUD} baud")
+print("Commands: 'on' | 'off' | 'status' | <raw line> | Ctrl+C to stop")
 
 try:
     while True:
-        # Send a ping every 3 seconds to test the Pi -> ESP32 direction
-        if time.time() - last_ping > 3:
-            ser.write(b"PING\n")
-            print("TX -> ESP32: PING")
-            last_ping = time.time()
+        # Pi -> ESP32: interactive commands
+        if select.select([sys.stdin], [], [], 0)[0]:
+            line = sys.stdin.readline().strip()
+            if line == "":
+                continue
+            cmd = {
+                "on": "CMD:CHARGE:ON",
+                "off": "CMD:CHARGE:OFF",
+                "status": "CMD:STATUS",
+            }.get(line.lower(), line)
+            ser.write((cmd + "\n").encode())
+            print(f"TX -> ESP32: {cmd}")
 
+        # ESP32 -> Pi: status / RFID events
         line = ser.readline()
         if line:
-            print(f"RX <- ESP32: {line.decode('utf-8', errors='replace').rstrip()}")
+            text = line.decode("utf-8", errors="replace").rstrip()
+            print(f"RX <- ESP32: {text}")
 except KeyboardInterrupt:
     print("\nStopped by user")
 finally:

@@ -88,6 +88,21 @@ Both sides use 3.3V logic — **no level shifter needed**. The detailed pin refe
 - **GND ↔ GND is mandatory** (common ground for the UART signal).
 - Never connect 5V to the ESP32 GPIOs.
 
+### MFRC522 RFID reader (optional, manual override)
+
+| MFRC522 | ESP32 DevKit |
+|---|---|
+| SDA/SS | GPIO 5 |
+| SCK | GPIO 18 |
+| MOSI | GPIO 23 |
+| MISO | GPIO 19 |
+| RST | GPIO 22 |
+| 3.3V | 3.3V |
+| GND | GND |
+
+The RFID reader acts as a manual override: tapping a card toggles charging
+start/stop. See `docs/uart-protocol.md` for the ESP32 ↔ Pi protocol.
+
 ## 4. Flash the ESP32
 
 Open the `esp32/` folder in VS Code (PlatformIO extension installed), then:
