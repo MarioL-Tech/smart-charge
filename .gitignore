@@ -26,3 +26,8 @@ venv/
 .env
 secrets.h
 config.local.h
+
+# Slidev deck (local experiment)
+slide/node_modules/
+slide/dist/
+slide/.slidev/
