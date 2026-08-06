@@ -74,15 +74,19 @@ sudo apt install python3-serial
 
 ## 3. Wiring (ESP32 <-> Raspberry Pi)
 
-Both sides use 3.3V logic — **no level shifter needed**.
+Both sides use 3.3V logic — **no level shifter needed**. The detailed pin reference lives in [docs/pin-connection.md](pin-connection.md).
 
-| Raspberry Pi (40-pin header) | ESP32 DevKit |
-|---|---|
-| GPIO 14 / TXD (pin 8) | GPIO 16 (Serial2 RX) |
-| GPIO 15 / RXD (pin 10) | GPIO 17 (Serial2 TX) |
-| GND (pin 6) | GND |
+| Raspberry Pi (40-pin header) | ESP32 DevKit | Signal |
+|---|---|---|
+| GPIO 14 / TXD (pin 8) | GPIO 16 (Serial2 RX) | Pi TX → ESP32 RX |
+| GPIO 15 / RXD (pin 10) | GPIO 17 (Serial2 TX) | Pi RX ← ESP32 TX |
+| GND (pin 6) | GND | Common ground (GND ↔ GND) |
 
-**Warning:** never connect 5V to the ESP32 GPIOs.
+**Warnings:**
+
+- TX ↔ RX is **crossover** — never connect TX to TX.
+- **GND ↔ GND is mandatory** (common ground for the UART signal).
+- Never connect 5V to the ESP32 GPIOs.
 
 ## 4. Flash the ESP32
 
