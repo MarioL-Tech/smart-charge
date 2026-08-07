@@ -30,10 +30,11 @@ This is the contract between the ESP32 and the Raspberry Pi. See
 
 1. The ESP32 sends `EVSE:STATUS:...` on **every state change** (including boot).
 2. Repeated identical commands are **not** re-sent (state did not change).
-3. RFID tap = **manual override for the anti-theft lock**: first tap locks
-   (`ANTITHEFT:ACTIVE`, servo 90°), next tap unlocks (`ANTITHEFT:INACTIVE`,
-   servo 0°). Reported as `SRC:rfid`. Cards held on the reader are debounced
-   (800 ms).
+3. RFID tap = **manual override for the anti-theft lock**: first tap unlocks
+   (`ANTITHEFT:INACTIVE`, servo 0°), next tap locks (`ANTITHEFT:ACTIVE`,
+   servo 90°). Reported as `SRC:rfid`. Cards held on the reader are debounced
+   (800 ms). **At boot the lock starts ENGAGED** (`ANTITHEFT:ACTIVE:SRC:boot`,
+   servo 90°) — fail-safe.
 4. **Charging is Pi-controlled**: `CMD:CHARGE:ON/OFF` — the ESP32 only
    mirrors the state; the Pi enforces it at the wallbox via Modbus
    (see `docs/setup.md` §6). The anti-theft lock is **independent** of the
