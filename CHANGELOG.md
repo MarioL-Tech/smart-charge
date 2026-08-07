@@ -6,6 +6,7 @@ Format: `YYYY-MM-DD HH:MM` (Europe/Vienna)
 
 ## 2026-08-07
 
+- **16:30** — **Docs: setup.md + uart-protocol.md brought to current state** — setup.md §3 (RFID = anti-theft toggle, servo independent of charging, boot 0°), §4 (current firmware description instead of old counter sketch), §5 (UART bridge expected output, boot diagnostics incl. `0x82` = PN512, anti-theft toggle test, troubleshooting); uart-protocol.md: version-line meanings extended with `0x82`, wallbox section wording updated.
 - **16:24** — **Fix: servo boots at 0° (released)** — anti-theft lock starts `INACTIVE` (servo 0°) at boot; first RFID tap activates the lock (90°), next tap releases it (0°). Supersedes the 16:19 boot-90° change.
 - **16:19** — **Feat: anti-theft lock starts ENGAGED at boot** — servo initializes to 90° (SERVO_LOCK_DEG) and the anti-theft state boots as `ACTIVE` (fail-safe: lock closed on power-up); first RFID tap now unlocks, next tap locks. *(reverted by 16:24)*
 - **15:50** — **Docs: pin-connection.md synced to new behavior** — MFRC522 note + servo section now describe the RFID-toggled anti-theft lock (independent of charging) instead of the old charging-coupled behavior.
