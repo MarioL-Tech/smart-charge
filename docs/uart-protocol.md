@@ -30,11 +30,20 @@ This is the contract between the ESP32 and the Raspberry Pi. See
 
 1. The ESP32 sends `EVSE:STATUS:...` on **every state change** (including boot).
 2. Repeated identical commands are **not** re-sent (state did not change).
-3. RFID tap = **manual override**: toggles the charging state, reported as
-   `SRC:rfid`. Cards held on the reader are debounced (800 ms).
-4. **UID whitelist:** currently *any* card toggles the state. A whitelist of
+3. RFID tap = **manual override for the anti-theft lock**: first tap locks
+   (`ANTITHEFT:ACTIVE`, servo 90°), next tap unlocks (`ANTITHEFT:INACTIVE`,
+   servo 0°). Reported as `SRC:rfid`. Cards held on the reader are debounced
+   (800 ms).
+4. **Charging is Pi-controlled**: `CMD:CHARGE:ON/OFF` — the ESP32 only
+   mirrors the state; the Pi enforces it at the wallbox via Modbus
+   (see `docs/setup.md` §6). The anti-theft lock is **independent** of the
+   charging state.
+5. **UID whitelist:** currently *any* card toggles the lock. A whitelist of
    allowed UIDs is a planned extension.
-5. Unknown commands are answered with `EVSE:ERROR:UNKNOWN_CMD:<cmd>`.
+6. Unknown commands are answered with `EVSE:ERROR:UNKNOWN_CMD:<cmd>`.
+7. `CMD:STATUS` answers with the charging state **and** the anti-theft state.
+8. At boot the ESP32 prints the MFRC522 firmware version on the USB serial
+   (`0x91`/`0x92` = reader detected, `0x00`/`0xFF` = wiring/power problem).
 
 ## Charging station interface
 

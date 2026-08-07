@@ -14,8 +14,9 @@
 #define CARD_DEBOUNCE_MS 800 // ignore re-reads while the card is held on the reader
 
 // --- Anti-theft servo ---
-// Model servo (e.g. SG90) used as anti-theft lock: moves to SERVO_LOCK_DEG
-// while charging is active, back to SERVO_UNLOCK_DEG when charging stops.
+// Model servo (e.g. SG90) used as anti-theft lock. Toggled by RFID taps
+// (manual override), independent of the charging state: first tap locks
+// (SERVO_LOCK_DEG), next tap unlocks (SERVO_UNLOCK_DEG).
 #define SERVO_PIN       13
 #define SERVO_UNLOCK_DEG 0
 #define SERVO_LOCK_DEG   90

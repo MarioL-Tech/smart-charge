@@ -8,11 +8,12 @@
 MFRC522 mfrc522(RFID_SS_PIN, RFID_RST_PIN);
 Servo antiTheftServo;
 
-// Current charging state. The charging station interface is still TBD
-// (relay, CP signal, Modbus, ...) - see docs/uart-protocol.md.
+// Charging is controlled by the Raspberry Pi (wallbox Modbus interface,
+// see docs/uart-protocol.md). The ESP32 only mirrors the state.
 bool chargingOn = false;
 
-// Anti-theft follows the charging state: charging active -> lock engaged.
+// Anti-theft is toggled independently by RFID taps (manual override):
+// first tap locks, next tap unlocks.
 bool antiTheftActive = false;
 
 unsigned long lastCardTapMs = 0;
@@ -41,6 +42,13 @@ void sendStatus(const char *reason) {
                 chargingOn ? "ON" : "OFF", reason);
 }
 
+void sendAntiTheft(const char *reason) {
+  Serial2.printf("EVSE:STATUS:ANTITHEFT:%s:SRC:%s\n",
+                 antiTheftActive ? "ACTIVE" : "INACTIVE", reason);
+  Serial.printf("EVSE:STATUS:ANTITHEFT:%s:SRC:%s\n",
+                antiTheftActive ? "ACTIVE" : "INACTIVE", reason);
+}
+
 void sendRfidEvent(const String &uidHex) {
   Serial2.printf("EVSE:RFID:CARD:UID:%s\n", uidHex.c_str());
   Serial.printf("EVSE:RFID:CARD:UID:%s\n", uidHex.c_str());
@@ -48,18 +56,22 @@ void sendRfidEvent(const String &uidHex) {
 
 // ---------- Anti-theft servo ----------
 
-// The anti-theft lock follows the charging state:
-// charging active -> servo locks (SERVO_LOCK_DEG), charging off -> unlocks.
-void updateAntiTheft(const char *reason) {
-  antiTheftActive = chargingOn;
+// Sets the anti-theft lock state and reports every change to the Pi.
+void setAntiTheft(bool state, const char *reason) {
+  if (state == antiTheftActive) {
+    return; // no change, do not spam the Pi
+  }
+  antiTheftActive = state;
   antiTheftServo.write(antiTheftActive ? SERVO_LOCK_DEG : SERVO_UNLOCK_DEG);
-  Serial2.printf("EVSE:STATUS:ANTITHEFT:%s:SRC:%s\n",
-                 antiTheftActive ? "ACTIVE" : "INACTIVE", reason);
-  Serial.printf("EVSE:STATUS:ANTITHEFT:%s:SRC:%s\n",
-                antiTheftActive ? "ACTIVE" : "INACTIVE", reason);
+  sendAntiTheft(reason);
 }
 
-// ---------- Charging state ----------
+// RFID tap = manual override: first tap locks, next tap unlocks.
+void toggleAntiTheft(const char *reason) {
+  setAntiTheft(!antiTheftActive, reason);
+}
+
+// ---------- Charging state (Pi-controlled) ----------
 
 void applyChargingState(bool state, const char *source) {
   if (state == chargingOn) {
@@ -67,7 +79,6 @@ void applyChargingState(bool state, const char *source) {
   }
   chargingOn = state;
   sendStatus(source);
-  updateAntiTheft(source);
 }
 
 void handleUartCommand(const String &cmd) {
@@ -77,6 +88,7 @@ void handleUartCommand(const String &cmd) {
     applyChargingState(false, "pi");
   } else if (cmd == "CMD:STATUS") {
     sendStatus("query");
+    sendAntiTheft("query");
   } else if (cmd.length() > 0) {
     // Unknown command: report back so the Pi side can notice protocol drift.
     Serial2.printf("EVSE:ERROR:UNKNOWN_CMD:%s\n", cmd.c_str());
@@ -123,9 +135,9 @@ void handleRfidCard() {
   String uid = uidToHex();
   sendRfidEvent(uid);
 
-  // Manual override: any valid card toggles the charging state.
+  // Manual override: any valid card toggles the anti-theft lock.
   // TODO: whitelist of allowed UIDs, see docs/uart-protocol.md.
-  applyChargingState(!chargingOn, "rfid");
+  toggleAntiTheft("rfid");
 
   mfrc522.PICC_HaltA();
   mfrc522.PCD_StopCrypto1();
@@ -141,13 +153,18 @@ void setup() {
   mfrc522.PCD_Init();
   mfrc522.PCD_SetAntennaGain(MFRC522::RxGain_max);
 
-  // Start with the anti-theft lock released (charging is off).
+  // Diagnostic: firmware version of the MFRC522.
+  // 0x91/0x92 = module detected OK; 0x00/0xFF = wiring/power problem.
+  uint8_t rfidVer = mfrc522.PCD_ReadRegister(MFRC522::VersionReg);
+  Serial.printf("MFRC522 firmware version: 0x%02X\n", rfidVer);
+
+  // Start with the anti-theft lock released.
   antiTheftServo.attach(SERVO_PIN);
   antiTheftServo.write(SERVO_UNLOCK_DEG);
 
   Serial.println("EVSE RFID controller started");
   sendStatus("boot");
-  updateAntiTheft("boot");
+  sendAntiTheft("boot");
 }
 
 void loop() {
