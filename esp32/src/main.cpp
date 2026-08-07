@@ -11,6 +11,7 @@ MFRC522 mfrc522(RFID_SS_PIN, RFID_RST_PIN);
 bool chargingOn = false;
 
 unsigned long lastCardTapMs = 0;
+bool lastCardPresent = false; // edge detection: a card must be removed before the next tap counts
 
 // ---------- UART helpers ----------
 
@@ -77,21 +78,35 @@ String uidToHex() {
 }
 
 void handleRfidCard() {
-  if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
+  bool present = mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial();
+  if (!present) {
+    lastCardPresent = false; // card was removed, next detection is a new tap
     return;
   }
+
+  unsigned long now = millis();
+  if (lastCardPresent) {
+    // Same card still on the reader: ignore re-reads while held.
+    mfrc522.PICC_HaltA();
+    mfrc522.PCD_StopCrypto1();
+    return;
+  }
+  lastCardPresent = true;
+
+  // Debounce: minimum time between two accepted taps.
+  if (now - lastCardTapMs < CARD_DEBOUNCE_MS) {
+    mfrc522.PICC_HaltA();
+    mfrc522.PCD_StopCrypto1();
+    return;
+  }
+  lastCardTapMs = now;
 
   String uid = uidToHex();
   sendRfidEvent(uid);
 
-  // Debounce: the same card is often read repeatedly while held on the reader.
-  unsigned long now = millis();
-  if (now - lastCardTapMs > CARD_DEBOUNCE_MS) {
-    lastCardTapMs = now;
-    // Manual override: any valid card toggles the charging state.
-    // TODO: whitelist of allowed UIDs, see docs/uart-protocol.md.
-    applyChargingState(!chargingOn, "rfid");
-  }
+  // Manual override: any valid card toggles the charging state.
+  // TODO: whitelist of allowed UIDs, see docs/uart-protocol.md.
+  applyChargingState(!chargingOn, "rfid");
 
   mfrc522.PICC_HaltA();
   mfrc522.PCD_StopCrypto1();

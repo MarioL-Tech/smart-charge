@@ -1,0 +1,4 @@
+{
+    "C_Cpp.default.compilerPath": "/home/mario/.platformio/xtensa-esp32-elf-g++.sh",
+    "C_Cpp.errorSquiggles": "enabled"
+}
