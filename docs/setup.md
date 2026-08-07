@@ -101,7 +101,8 @@ Both sides use 3.3V logic — **no level shifter needed**. The detailed pin refe
 | GND | GND |
 
 The RFID reader acts as a manual override: tapping a card toggles charging
-start/stop. See `docs/uart-protocol.md` for the ESP32 ↔ Pi protocol.
+start/stop. See `docs/pin-connection.md` for the full pin reference and
+`docs/uart-protocol.md` for the ESP32 ↔ Pi protocol.
 
 ## 4. Flash the ESP32
 
