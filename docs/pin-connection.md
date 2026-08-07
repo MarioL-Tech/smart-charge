@@ -57,3 +57,15 @@ Notes:
   100–250 mA under load, which overloads the 3.3V rail. Use a 5V supply and a
   **common ground** with the ESP32.
 - The signal pin uses 3.3V logic, which is fine for common model servos (SG90, MG90S).
+
+## Wallbox (ABB Terra AC) — NOT on ESP32 pins
+
+The charging station is connected to the **Raspberry Pi** (not the ESP32) via
+a USB-RS485 adapter — no GPIO wiring needed:
+
+```text
+Pi USB ──> USB-RS485 adapter ──A/B──> Wallbox RS-485 terminals
+```
+
+See `docs/setup.md` §6 for Modbus configuration and `docs/wallbox/` for the
+register reference.

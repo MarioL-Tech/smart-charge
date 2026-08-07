@@ -149,7 +149,62 @@ RX <- ESP32: EVSE_TEST:1
 - `ECHO:PING` = Pi -> ESP32 direction works
 - Login/boot text (`raspberrypi login:`, `Password:`) in the output means the serial console is still enabled — repeat step 2 (Serial Port settings) and reboot.
 
-## 6. MQTT (next step)
+## 6. Wallbox interface (ABB Terra AC, Modbus RTU)
+
+The charging station is controlled by the **Raspberry Pi** over Modbus RTU
+(RS-485) using a USB-RS485 adapter — no ESP32 pins involved.
+
+**Hardware**
+
+- USB-RS485 adapter (e.g. CH340/CP2102-based, 3.3V/5V tolerant)
+- The wallbox's RS-485 A/B terminals (see Terra AC Installation Manual)
+
+**Wiring**
+
+| USB-RS485 adapter | Wallbox (Terra AC) |
+|---|---|
+| A (D+) | RS-485 A |
+| B (D−) | RS-485 B |
+| GND (optional) | GND (if available) |
+
+**Configuration** (via Terra Config app → Communication Settings)
+
+- Mode: **Modbus RTU**, charger as **secondary** device
+- **Baud rate:** 57600, **Parity:** Even (8E1), **Stop bits:** 1
+- **Modbus ID:** 9 (unique address, 1–247)
+
+The adapter appears on the Pi as `/dev/ttyUSBEVSEcontrol` (udev symlink; the
+bare device is usually `/dev/ttyUSB0`). Test with `mbpoll`:
+
+```bash
+sudo apt install mbpoll   # if not already installed
+
+# Read charging state (register 400Ch)
+mbpoll /dev/ttyUSBEVSEcontrol -m rtu -a 9 -c 2 -B -0 -1 -b 57600 -P even -s 1 -r 16396 -t 3:int
+
+# Start charging session (register 4105h, value 0 = start)
+mbpoll /dev/ttyUSBEVSEcontrol -m rtu -a 9 -B -0 -1 -b 57600 -P even -s 1 -r 16645 -t 3:int 0
+
+# Set current limit to 16 A (register 4100h, value in mA)
+mbpoll /dev/ttyUSBEVSEcontrol -m rtu -a 9 -B -0 -1 -b 57600 -P even -s 1 -r 16640 -t 3:int 16000
+```
+
+More registers and commands: `docs/wallbox/ABB_Terra_AC_Modbus_Befehle.md`
+and the official datasheet `docs/wallbox/ABB_Terra_AC_Charger_ModbusCommunication_v1.7.pdf`.
+
+**Critical notes**
+
+- **Polling timeout:** the wallbox aborts the charging session if it is not
+  polled within its communication timeout (**default 60 s**, register 4106h,
+  settable 10–65535 s). Poll regularly (recommended 30–90 s) or raise the
+  timeout.
+- **Current limit < 6 A** puts the session into **Pause** (IEC 61851-1).
+- Socket lock/unlock (register 4103h) only exists on socket models — the
+  connector type is encoded in the serial number (register 4000h, byte 7).
+- `1` = stop / lock, `0` = start / unlock (note the inverted logic on
+  register 4105h!).
+
+## 7. MQTT (next step)
 
 Install the broker on the Pi:
 
