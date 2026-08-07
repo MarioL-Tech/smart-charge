@@ -10,6 +10,8 @@ This is the contract between the ESP32 and the Raspberry Pi. See
 |---|---|
 | `EVSE:STATUS:CHARGING:ON:SRC:<source>` | Charging started |
 | `EVSE:STATUS:CHARGING:OFF:SRC:<source>` | Charging stopped |
+| `EVSE:STATUS:ANTITHEFT:ACTIVE:SRC:<source>` | Anti-theft lock engaged (servo 90°) |
+| `EVSE:STATUS:ANTITHEFT:INACTIVE:SRC:<source>` | Anti-theft lock released (servo 0°) |
 | `EVSE:RFID:CARD:UID:<uid>` | RFID card detected (`uid` = hex, e.g. `AB:CD:EF:12`) |
 | `EVSE:ERROR:UNKNOWN_CMD:<cmd>` | Unknown command received |
 

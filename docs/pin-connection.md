@@ -39,3 +39,21 @@ Notes:
 - The MFRC522 is a **3.3V device** — never connect it to 5V.
 - The IRQ pin of the module is not connected (polling mode).
 - A card tap acts as manual override and toggles the charging state (see `docs/uart-protocol.md`).
+
+## Anti-theft servo (model servo)
+
+Servo connection for the anti-theft lock. The servo moves to 90° while charging
+is active (lock engaged) and back to 0° when charging stops.
+
+| Servo (e.g. SG90) | ESP32 DevKit / PSU |
+|---|---|
+| Signal (orange) | GPIO 13 |
+| VCC (red) | 5V (external or Pi 5V pin) |
+| GND (brown) | GND (common with ESP32) |
+
+Notes:
+
+- **Do not power the servo from the ESP32 3V3 pin** — a model servo can draw
+  100–250 mA under load, which overloads the 3.3V rail. Use a 5V supply and a
+  **common ground** with the ESP32.
+- The signal pin uses 3.3V logic, which is fine for common model servos (SG90, MG90S).

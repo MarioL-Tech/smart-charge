@@ -104,6 +104,19 @@ The RFID reader acts as a manual override: tapping a card toggles charging
 start/stop. See `docs/pin-connection.md` for the full pin reference and
 `docs/uart-protocol.md` for the ESP32 ↔ Pi protocol.
 
+### Anti-theft servo (model servo)
+
+| Servo (e.g. SG90) | ESP32 DevKit / PSU |
+|---|---|
+| Signal (orange) | GPIO 13 |
+| VCC (red) | 5V (external or Pi 5V pin) |
+| GND (brown) | GND (common with ESP32) |
+
+The servo acts as the anti-theft lock: while charging is active it moves to
+**90°** (locked), when charging stops it returns to **0°** (unlocked).
+**Do not power the servo from the ESP32 3V3 pin** — use a 5V supply with a
+common ground (see `docs/pin-connection.md`).
+
 ## 4. Flash the ESP32
 
 Open the `esp32/` folder in VS Code (PlatformIO extension installed), then:

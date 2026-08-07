@@ -4,6 +4,10 @@ All notable changes to the EVSE-Control project. This file is **actively maintai
 
 Format: `YYYY-MM-DD HH:MM` (Europe/Vienna)
 
+## 2026-08-07
+
+- **10:32** — **Feat: anti-theft servo** — model servo (GPIO 13) acts as anti-theft lock: 90° while charging is active, 0° when charging stops; new `EVSE:STATUS:ANTITHEFT:...` messages; ESP32Servo library added (PR #12).
+
 ## 2026-08-06
 
 - **19:51** — **Feat: RFID manual override (MFRC522)** — ESP32 reads RFID cards as manual override (tap = toggle charging), reports status to the Pi and accepts Pi commands over UART; new line protocol in `docs/uart-protocol.md`; `rasppi/src/main.py` is now an interactive UART bridge (PR #9).
