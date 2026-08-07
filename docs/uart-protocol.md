@@ -43,8 +43,10 @@ This is the contract between the ESP32 and the Raspberry Pi. See
    allowed UIDs is a planned extension.
 6. Unknown commands are answered with `EVSE:ERROR:UNKNOWN_CMD:<cmd>`.
 7. `CMD:STATUS` answers with the charging state **and** the anti-theft state.
-8. At boot the ESP32 prints the MFRC522 firmware version on the USB serial
-   (`0x91`/`0x92` = reader detected, `0x00`/`0xFF` = wiring/power problem).
+8. At boot the ESP32 prints the MFRC522 firmware version on the USB serial:
+   `0x91`/`0x92` = MFRC522 chip, `0x82` = PN512 chip (common on cheap
+   modules, register-compatible) — all three mean the reader is alive;
+   `0x00`/`0xFF` = wiring/power problem.
 
 ## Charging station interface
 
@@ -61,9 +63,9 @@ Raspberry Pi ──USB──> USB-RS485 adapter ──A/B──> ABB Terra AC wa
 - **Modbus config:** 57600 baud, 8E1 (Even parity), Modbus ID 9.
 - The Pi is the Modbus **master**: it polls the wallbox registers (charging
   state, currents, power, energy) and writes start/stop + current limit.
-- The ESP32 keeps its **local** `applyChargingState()` (state machine for
-  RFID override + anti-theft servo) and reports over UART; the Pi enforces
-  the state at the wallbox via Modbus.
+- The ESP32 keeps its **local** state machine (anti-theft lock via RFID taps
+  + charging-state mirror) and reports over UART; the Pi enforces the
+  charging state at the wallbox via Modbus.
 - Full register map, `mbpoll` examples and wiring: `docs/wallbox/`
   (ABB_Terra_AC_Modbus_Befehle.md + official ABB datasheet PDF) and
   `docs/setup.md` §6.

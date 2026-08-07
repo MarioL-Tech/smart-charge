@@ -100,9 +100,10 @@ Both sides use 3.3V logic — **no level shifter needed**. The detailed pin refe
 | 3.3V | 3.3V |
 | GND | GND |
 
-The RFID reader acts as a manual override: tapping a card toggles charging
-start/stop. See `docs/pin-connection.md` for the full pin reference and
-`docs/uart-protocol.md` for the ESP32 ↔ Pi protocol.
+The RFID reader is the **manual override for the anti-theft lock**: tapping a
+card locks (servo 90°), tapping again unlocks (servo 0°). The lock is
+**independent** of the charging state. See `docs/pin-connection.md` for the
+full pin reference and `docs/uart-protocol.md` for the ESP32 ↔ Pi protocol.
 
 ### Anti-theft servo (model servo)
 
@@ -112,8 +113,9 @@ start/stop. See `docs/pin-connection.md` for the full pin reference and
 | VCC (red) | 5V (external or Pi 5V pin) |
 | GND (brown) | GND (common with ESP32) |
 
-The servo acts as the anti-theft lock: while charging is active it moves to
-**90°** (locked), when charging stops it returns to **0°** (unlocked).
+The servo acts as the anti-theft lock, toggled by **RFID taps** (manual
+override, independent of charging): first tap locks (**90°**), next tap
+unlocks (**0°**). At boot the lock starts **released (0°)**.
 **Do not power the servo from the ESP32 3V3 pin** — use a 5V supply with a
 common ground (see `docs/pin-connection.md`).
 
@@ -125,7 +127,9 @@ Open the `esp32/` folder in VS Code (PlatformIO extension installed), then:
 pio run -t upload
 ```
 
-The sketch sends a counter line every second over Serial2 (GPIO 16/17, 115200 baud) and echoes everything it receives.
+The firmware initializes the MFRC522 RFID reader and the anti-theft servo,
+starts the UART link (GPIO 16/17, 115200 baud) and reports its state at boot
+(see §5 for the expected output).
 
 ## 5. Run the connection test
 
@@ -135,19 +139,56 @@ On the Pi, from the `rasppi/` directory:
 python3 src/main.py
 ```
 
-Expected output:
+This starts the UART bridge: it prints everything the ESP32 sends and lets
+you send commands (`on` / `off` / `status` or raw protocol lines).
+
+**Expected boot output** (as soon as the ESP32 is powered/reset):
 
 ```text
-EVSE connection test: listening on /dev/serial0 @ 115200 baud
-TX -> ESP32: PING
-RX <- ESP32: ECHO:PING
-RX <- ESP32: EVSE_TEST:0
-RX <- ESP32: EVSE_TEST:1
+EVSE UART bridge: listening on /dev/serial0 @ 115200 baud
+RX <- ESP32: EVSE:STATUS:CHARGING:OFF:SRC:boot
+RX <- ESP32: EVSE:STATUS:ANTITHEFT:INACTIVE:SRC:boot
 ```
 
-- `EVSE_TEST` lines = ESP32 -> Pi direction works
-- `ECHO:PING` = Pi -> ESP32 direction works
-- Login/boot text (`raspberrypi login:`, `Password:`) in the output means the serial console is still enabled — repeat step 2 (Serial Port settings) and reboot.
+On the ESP32's **USB serial monitor** (115200 baud) the same boot lines
+appear, plus the RFID diagnostic:
+
+```text
+MFRC522 firmware version: 0x82
+EVSE RFID controller started
+EVSE:STATUS:CHARGING:OFF:SRC:boot
+EVSE:STATUS:ANTITHEFT:INACTIVE:SRC:boot
+```
+
+**Interpreting the version line:**
+
+- `0x91` / `0x92` = MFRC522 chip detected
+- `0x82` = **PN512** chip (common on cheap "MFRC522" modules) — also OK,
+  register-compatible, reads ISO 14443A cards
+- `0x00` / `0xFF` = **wiring/power problem** — the ESP32 cannot talk to the
+  reader (check SS/SCK/MOSI/MISO/RST, 3.3V, GND)
+
+**Anti-theft toggle test** (with a 13.56 MHz card, e.g. the white Mifare
+cards/key fobs that ship with the module):
+
+```text
+RX <- ESP32: EVSE:RFID:CARD:UID:AB:CD:EF:12
+RX <- ESP32: EVSE:STATUS:ANTITHEFT:ACTIVE:SRC:rfid     # servo → 90°
+# next tap:
+RX <- ESP32: EVSE:RFID:CARD:UID:AB:CD:EF:12
+RX <- ESP32: EVSE:STATUS:ANTITHEFT:INACTIVE:SRC:rfid   # servo → 0°
+```
+
+**Troubleshooting:**
+
+- `raspberrypi login:` / `Password:` text in the bridge output → the serial
+  console is still enabled — repeat step 2 (Serial Port settings) and reboot.
+- No boot lines at all on the Pi → UART wiring (TX/RX crossover, GND) or the
+  Pi serial config; check with the USB serial monitor whether the ESP32 boots.
+- Boot lines appear but no RFID reaction → the reader is alive (check the
+  version line); verify the card is **13.56 MHz** (Mifare/NTAG — MFRC522/PN512
+  cannot read 125 kHz cards) and hold it flat and still on the antenna.
+- No boot lines even on the USB monitor → flash/upload problem.
 
 ## 6. Wallbox interface (ABB Terra AC, Modbus RTU)
 
