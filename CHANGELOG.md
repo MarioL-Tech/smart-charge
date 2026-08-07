@@ -6,6 +6,7 @@ Format: `YYYY-MM-DD HH:MM` (Europe/Vienna)
 
 ## 2026-08-07
 
+- **15:24** — **Docs: wallbox interface (ABB Terra AC, Modbus RTU)** — charging-station interface decided: Pi acts as Modbus RTU master over USB-RS485 (`/dev/ttyUSBEVSEcontrol`, 57600 8E1, ID 9); new `docs/setup.md` §6 (wiring, Terra Config, `mbpoll` tests, polling-timeout + <6 A pause warnings), `docs/uart-protocol.md` charging-station section updated, `docs/pin-connection.md` note; wallbox datasheet + `mbpoll` cheat sheet + smart meter docs added by Mario (commits `docwallbox*`, `docmeterschematic`).
 - **10:32** — **Feat: anti-theft servo** — model servo (GPIO 13) acts as anti-theft lock: 90° while charging is active, 0° when charging stops; new `EVSE:STATUS:ANTITHEFT:...` messages; ESP32Servo library added (PR #12).
 
 ## 2026-08-06

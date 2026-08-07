@@ -11,3 +11,23 @@ SmartCharge is an open-source solution designed to optimize electric vehicle cha
 📱 Remote Monitoring: Track your charging progress and energy savings through a sleek dashboard.
 
 🔌 Universal Compatibility: Supports major EVSE (Electric Vehicle Supply Equipment) protocols.
+
+---
+
+## Architecture
+
+```text
+┌─────────────┐   UART (115200 8N1)   ┌──────────────┐   MQTT (1883)   ┌──────────────────┐
+│    ESP32    │◄────────────────────►│ Raspberry Pi │◄───────────────►│ Home Assistant /  │
+│ RFID (MFRC522) │                    │ Modbus master│                 │ web overlay       │
+│ anti-theft servo │                  └──────┬───────┘                 └──────────────────┘
+└─────────────┘                             │ RS-485 (Modbus RTU, 57600 8E1, ID 9)
+                                     ┌──────▼───────┐
+                                     │ ABB Terra AC │
+                                     │   wallbox    │
+                                     └──────────────┘
+```
+
+- **ESP32:** RFID manual override (MFRC522), anti-theft servo, UART bridge to the Pi.
+- **Raspberry Pi:** Modbus RTU master to the wallbox (USB-RS485), MQTT broker + bridge, Home Assistant integration, web overlay.
+- Protocol contracts: `docs/uart-protocol.md` (ESP32 ↔ Pi), `docs/wallbox/` (Pi ↔ wallbox Modbus).

@@ -38,7 +38,25 @@ This is the contract between the ESP32 and the Raspberry Pi. See
 
 ## Charging station interface
 
-TBD — the physical interface to the charging station (relay/contactor,
-CP/PP signal, Modbus, ...) is still under discussion. The ESP32 code isolates
-this behind the `applyChargingState()` function so the interface can be added
-without touching the protocol.
+**Decided: Modbus RTU (RS-485) via a USB-RS485 adapter on the Raspberry Pi.**
+
+The physical link to the charging station (ABB Terra AC) is owned by the
+**Raspberry Pi**, not the ESP32:
+
+```text
+Raspberry Pi ──USB──> USB-RS485 adapter ──A/B──> ABB Terra AC wallbox
+                    (/dev/ttyUSBEVSEcontrol)      (Modbus RTU, slave)
+```
+
+- **Modbus config:** 57600 baud, 8E1 (Even parity), Modbus ID 9.
+- The Pi is the Modbus **master**: it polls the wallbox registers (charging
+  state, currents, power, energy) and writes start/stop + current limit.
+- The ESP32 keeps its **local** `applyChargingState()` (state machine for
+  RFID override + anti-theft servo) and reports over UART; the Pi enforces
+  the state at the wallbox via Modbus.
+- Full register map, `mbpoll` examples and wiring: `docs/wallbox/`
+  (ABB_Terra_AC_Modbus_Befehle.md + official ABB datasheet PDF) and
+  `docs/setup.md` §6.
+
+**Planned:** `CMD:SET_CURRENT:<mA>` in the UART protocol so the ESP32 (or the
+Pi's MQTT layer) can set the charging current limit (register 4100h).
