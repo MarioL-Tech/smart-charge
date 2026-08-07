@@ -1,14 +1,19 @@
 #include <Arduino.h>
+#include <ESP32Servo.h>
 #include <SPI.h>
 #include <MFRC522.h>
 
 #include "config.h"
 
 MFRC522 mfrc522(RFID_SS_PIN, RFID_RST_PIN);
+Servo antiTheftServo;
 
 // Current charging state. The charging station interface is still TBD
 // (relay, CP signal, Modbus, ...) - see docs/uart-protocol.md.
 bool chargingOn = false;
+
+// Anti-theft follows the charging state: charging active -> lock engaged.
+bool antiTheftActive = false;
 
 unsigned long lastCardTapMs = 0;
 bool lastCardPresent = false; // edge detection: a card must be removed before the next tap counts
@@ -41,6 +46,19 @@ void sendRfidEvent(const String &uidHex) {
   Serial.printf("EVSE:RFID:CARD:UID:%s\n", uidHex.c_str());
 }
 
+// ---------- Anti-theft servo ----------
+
+// The anti-theft lock follows the charging state:
+// charging active -> servo locks (SERVO_LOCK_DEG), charging off -> unlocks.
+void updateAntiTheft(const char *reason) {
+  antiTheftActive = chargingOn;
+  antiTheftServo.write(antiTheftActive ? SERVO_LOCK_DEG : SERVO_UNLOCK_DEG);
+  Serial2.printf("EVSE:STATUS:ANTITHEFT:%s:SRC:%s\n",
+                 antiTheftActive ? "ACTIVE" : "INACTIVE", reason);
+  Serial.printf("EVSE:STATUS:ANTITHEFT:%s:SRC:%s\n",
+                antiTheftActive ? "ACTIVE" : "INACTIVE", reason);
+}
+
 // ---------- Charging state ----------
 
 void applyChargingState(bool state, const char *source) {
@@ -49,6 +67,7 @@ void applyChargingState(bool state, const char *source) {
   }
   chargingOn = state;
   sendStatus(source);
+  updateAntiTheft(source);
 }
 
 void handleUartCommand(const String &cmd) {
@@ -122,8 +141,13 @@ void setup() {
   mfrc522.PCD_Init();
   mfrc522.PCD_SetAntennaGain(MFRC522::RxGain_max);
 
+  // Start with the anti-theft lock released (charging is off).
+  antiTheftServo.attach(SERVO_PIN);
+  antiTheftServo.write(SERVO_UNLOCK_DEG);
+
   Serial.println("EVSE RFID controller started");
   sendStatus("boot");
+  updateAntiTheft("boot");
 }
 
 void loop() {
