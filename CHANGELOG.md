@@ -6,7 +6,8 @@ Format: `YYYY-MM-DD HH:MM` (Europe/Vienna)
 
 ## 2026-08-07
 
-- **16:19** — **Feat: anti-theft lock starts ENGAGED at boot** — servo initializes to 90° (SERVO_LOCK_DEG) and the anti-theft state boots as `ACTIVE` (fail-safe: lock closed on power-up); first RFID tap now unlocks, next tap locks.
+- **16:24** — **Fix: servo boots at 0° (released)** — anti-theft lock starts `INACTIVE` (servo 0°) at boot; first RFID tap activates the lock (90°), next tap releases it (0°). Supersedes the 16:19 boot-90° change.
+- **16:19** — **Feat: anti-theft lock starts ENGAGED at boot** — servo initializes to 90° (SERVO_LOCK_DEG) and the anti-theft state boots as `ACTIVE` (fail-safe: lock closed on power-up); first RFID tap now unlocks, next tap locks. *(reverted by 16:24)*
 - **15:50** — **Docs: pin-connection.md synced to new behavior** — MFRC522 note + servo section now describe the RFID-toggled anti-theft lock (independent of charging) instead of the old charging-coupled behavior.
 - **15:42** — **Feat: RFID toggles anti-theft lock (independent of charging)** — card tap now toggles the Diebstahlsicherung (first tap locks, next tap unlocks) instead of the charging state; charging stays Pi-controlled (`CMD:CHARGE:ON/OFF`); `CMD:STATUS` now reports both states; boot diagnostic prints MFRC522 firmware version (0x91/0x92 = OK) to spot wiring problems.
 - **15:24** — **Docs: wallbox interface (ABB Terra AC, Modbus RTU)** — charging-station interface decided: Pi acts as Modbus RTU master over USB-RS485 (`/dev/ttyUSBEVSEcontrol`, 57600 8E1, ID 9); new `docs/setup.md` §6 (wiring, Terra Config, `mbpoll` tests, polling-timeout + <6 A pause warnings), `docs/uart-protocol.md` charging-station section updated, `docs/pin-connection.md` note; wallbox datasheet + `mbpoll` cheat sheet + smart meter docs added by Mario (commits `docwallbox*`, `docmeterschematic`).

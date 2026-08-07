@@ -44,8 +44,8 @@ Notes:
 ## Anti-theft servo (model servo)
 
 Servo connection for the anti-theft lock. The lock is toggled by RFID taps
-(manual override, **independent of the charging state**): first tap unlocks
-(0°), next tap locks (90°). **At boot the lock starts engaged (90°) — fail-safe.**
+(manual override, **independent of the charging state**): first tap locks
+(90°), next tap unlocks (0°). **At boot the lock starts released (0°).**
 
 | Servo (e.g. SG90) | ESP32 DevKit / PSU |
 |---|---|
