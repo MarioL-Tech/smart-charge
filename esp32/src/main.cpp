@@ -13,8 +13,9 @@ Servo antiTheftServo;
 bool chargingOn = false;
 
 // Anti-theft is toggled independently by RFID taps (manual override):
-// first tap locks, next tap unlocks.
-bool antiTheftActive = false;
+// first tap unlocks, next tap locks. Starts ENGAGED (servo 90°) so the
+// lock is closed at boot (fail-safe).
+bool antiTheftActive = true;
 
 unsigned long lastCardTapMs = 0;
 bool lastCardPresent = false; // edge detection: a card must be removed before the next tap counts
@@ -158,9 +159,9 @@ void setup() {
   uint8_t rfidVer = mfrc522.PCD_ReadRegister(MFRC522::VersionReg);
   Serial.printf("MFRC522 firmware version: 0x%02X\n", rfidVer);
 
-  // Start with the anti-theft lock released.
+  // Start with the anti-theft lock ENGAGED (fail-safe: locked at boot).
   antiTheftServo.attach(SERVO_PIN);
-  antiTheftServo.write(SERVO_UNLOCK_DEG);
+  antiTheftServo.write(SERVO_LOCK_DEG);
 
   Serial.println("EVSE RFID controller started");
   sendStatus("boot");

@@ -15,8 +15,9 @@
 
 // --- Anti-theft servo ---
 // Model servo (e.g. SG90) used as anti-theft lock. Toggled by RFID taps
-// (manual override), independent of the charging state: first tap locks
-// (SERVO_LOCK_DEG), next tap unlocks (SERVO_UNLOCK_DEG).
+// (manual override), independent of the charging state: first tap unlocks
+// (SERVO_UNLOCK_DEG), next tap locks (SERVO_LOCK_DEG). At boot the lock
+// starts ENGAGED (SERVO_LOCK_DEG) — fail-safe.
 #define SERVO_PIN       13
 #define SERVO_UNLOCK_DEG 0
 #define SERVO_LOCK_DEG   90
